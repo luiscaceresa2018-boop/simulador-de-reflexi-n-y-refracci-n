@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador de Reflexión y Refracción</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --bg: #050505;
+      --text: #f5f5f5;
+      --muted: rgba(255,255,255,0.72);
+      --inc: #facc15;
+      --ref: #fb923c;
+      --tra: #22d3ee;
+      --crit: #d4d4d4;
+      --danger: #f87171;
+      --glass-bg: rgba(15,15,15,0.52);
+      --glass-btn: rgba(255,255,255,0.08);
+      --glass-hover: rgba(255,255,255,0.16);
+      --panel-border: rgba(255,255,255,0.10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      overflow: hidden;
+    }
+
+    .app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .bg-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 25% 20%, rgba(255,255,255,0.08), transparent 22%),
+        radial-gradient(circle at 78% 75%, rgba(255,255,255,0.05), transparent 24%),
+        linear-gradient(180deg, #181818 0%, #0d0d0d 100%);
+      background-size: cover;
+      background-position: center 75%;
+      background-repeat: no-repeat;
+      z-index: 0;
+      transition: opacity 0.35s ease, background-image 0.25s ease;
+    }
+
+    .bg-layer.changing {
+      opacity: 0.45;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.22);
+      z-index: 1;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .title {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    }
+
+    .top-actions {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 30;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .ghost-btn {
+      border: none;
+      background: var(--glass-btn);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font: inherit;
+      font-size: 0.84rem;
+      font-weight: 500;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.16);
+    }
+
+    .ghost-btn:hover,
+    .ghost-btn.active {
+      background: var(--glass-hover);
+    }
+
+    .menu-panel {
+      position: absolute;
+      top: 58px;
+      right: 14px;
+      width: 310px;
+      display: none;
+      z-index: 31;
+      background: var(--glass-bg);
+      border-radius: 14px;
+      padding: 12px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.28);
+      border: 1px solid var(--panel-border);
+    }
+
+    .menu-panel.open {
+      display: block;
+    }
+
+    .menu-section {
+      margin-bottom: 12px;
+    }
+
+    .menu-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .menu-title {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .menu-section select {
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      outline: none;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.34);
+      color: white;
+      font: inherit;
+      font-size: 0.9rem;
+    }
+
+    .menu-full {
+      width: 100%;
+    }
+
+    .mini-box {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
+    .mini-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .mini-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .mini-row .label {
+      color: var(--muted);
+    }
+
+    .mini-row .value {
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .equation-box {
+      display: none;
+      margin-top: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .equation-box.open {
+      display: block;
+    }
+
+    .help {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.35;
+      margin-top: 8px;
+    }
+
+    #angleBox {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      width: 220px;
+      z-index: 24;
+      background: var(--glass-bg);
+      border-radius: 14px;
+      padding: 12px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.28);
+      border: 1px solid var(--panel-border);
+    }
+
+    .angle-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    .plain-range {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 5px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.22);
+      outline: none;
+    }
+
+    .plain-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--inc);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(250,204,21,0.38);
+    }
+
+    #tirAlert {
+      position: absolute;
+      left: 50%;
+      bottom: 86px;
+      transform: translateX(-50%);
+      z-index: 24;
+      background: rgba(35,0,0,0.72);
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 0.9rem;
+      color: var(--danger);
+      display: none;
+      box-shadow: 0 4px 16px rgba(248,113,113,0.22);
+    }
+
+    #creatorCredit {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      z-index: 24;
+      background: rgba(15,15,15,0.50);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: rgba(255,255,255,0.78);
+      font-size: 0.8rem;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.24);
+    }
+
+    #introScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background:
+        radial-gradient(circle at 50% 44%, rgba(255,255,255,0.10), transparent 32%),
+        linear-gradient(180deg, #101010 0%, #050505 100%);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      transition: opacity 0.55s ease, visibility 0.55s ease;
+    }
+
+    #introScreen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    #introMatrix {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.46;
+    }
+
+    .intro-content {
+      position: relative;
+      z-index: 1;
+      width: min(620px, calc(100vw - 36px));
+      text-align: center;
+      color: #fff;
+      padding: 8px;
+      animation: introFloat 2.8s ease forwards;
+    }
+
+    .intro-title {
+      font-size: clamp(1.35rem, 4vw, 2.6rem);
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: 0;
+      text-shadow: 0 0 24px rgba(255,255,255,0.26);
+    }
+
+    .intro-line {
+      font-size: clamp(0.82rem, 2vw, 1rem);
+      color: rgba(255,255,255,0.68);
+      margin-bottom: 22px;
+    }
+
+    .intro-progress {
+      width: min(360px, 70vw);
+      height: 3px;
+      margin: 0 auto;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+      overflow: hidden;
+    }
+
+    .intro-progress span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.96), transparent);
+      transform-origin: left;
+      animation: introLoad 2.8s cubic-bezier(.22,1,.36,1) forwards;
+    }
+
+    @keyframes introLoad {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    @keyframes introFloat {
+      0% { opacity: 0; transform: translateY(12px) scale(0.98); filter: blur(8px); }
+      22% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+      82% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+      100% { opacity: 0; transform: translateY(-8px) scale(1.01); filter: blur(6px); }
+    }
+
+    #labels-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .ray-label {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: rgba(10,10,10,0.62);
+      padding: 4px 10px;
+      border-radius: 9px;
+      font-size: 0.84rem;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.26);
+      border: 1px solid rgba(255,255,255,0.10);
+      white-space: nowrap;
+    }
+
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(0,0,0,0.78);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      display: none;
+      z-index: 50;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+    }
+
+    @media (max-width: 768px) {
+      .menu-panel {
+        top: 58px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        max-width: 310px;
+      }
+
+      #angleBox {
+        right: 10px;
+        bottom: 10px;
+        width: calc(100vw - 20px);
+        max-width: 220px;
+      }
+
+      #creatorCredit {
+        left: 10px;
+        bottom: 92px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="bg-layer" id="bgLayer"></div>
+    <div class="overlay"></div>
+
+    <div class="title">
+      <h1>Reflexión y Refracción</h1>
+    </div>
+
+    <div class="top-actions">
+      <button class="ghost-btn" id="fullscreenBtn">⛶ Pantalla completa</button>
+      <button class="ghost-btn" id="menuBtn">☰ Panel</button>
+    </div>
+
+    <div class="menu-panel" id="controlMenu">
+      <div class="menu-section">
+        <div class="menu-title">Escenario</div>
+        <select id="scenarioSelect"></select>
+        <div class="help">
+          El escenario existe una sola vez. La dirección decide desde qué medio incide la luz.
+        </div>
+      </div>
+
+      <div class="menu-section">
+        <button class="ghost-btn menu-full" id="directionBtn">Incidencia desde arriba</button>
+      </div>
+
+      <div class="menu-section">
+        <button class="ghost-btn menu-full" id="equationBtn">Mostrar ecuaciones</button>
+        <div class="equation-box" id="equationBox">
+          <div>$$\theta_r=\theta_i$$</div>
+          <div style="margin-top:8px;">$$n_1\sin(\theta_i)=n_2\sin(\theta_t)$$</div>
+          <div style="margin-top:8px;">$$\theta_c=\arcsin\left(\frac{n_2}{n_1}\right)$$</div>
+          <div style="margin-top:8px;">$$\theta_i>\theta_c$$</div>
+          <div class="help">
+            El ángulo crítico solo existe cuando la luz pasa de un medio con mayor índice a otro con menor índice.
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-section">
+        <div class="mini-box">
+          <div class="mini-row">
+            <span class="label">Escenario</span>
+            <span class="value" id="scenarioText">☁️ Aire / 💧 Agua</span>
+          </div>
+          <div class="mini-row">
+            <span class="label">Medio incidente</span>
+            <span class="value" id="incidentMediumText">☁️ Aire</span>
+          </div>
+          <div class="mini-row">
+            <span class="label">Medio transmitido</span>
+            <span class="value" id="transmittedMediumText">💧 Agua</span>
+          </div>
+          <div class="mini-row">
+            <span class="label">Índice incidente</span>
+            <span class="value" id="incidentIndexText">1,00</span>
+          </div>
+          <div class="mini-row">
+            <span class="label">Índice transmitido</span>
+            <span class="value" id="transmittedIndexText">1,33</span>
+          </div>
+          <div class="mini-row">
+            <span class="label">Ángulo crítico</span>
+            <span class="value" id="criticalAngleText">No aplica</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="angleBox">
+      <div class="angle-header">
+        <span style="color:var(--muted)">θᵢ</span>
+        <span style="color:var(--inc); font-weight:600" id="angleValueDisplay">45,0°</span>
+      </div>
+      <input type="range" id="angleSlider" class="plain-range" min="0.1" max="89.9" step="0.1" value="45.0">
+    </div>
+
+    <div id="creatorCredit">Creador Luis A. Cáceres</div>
+
+    <div id="tirAlert">Reflexión interna total</div>
+
+    <canvas id="simCanvas"></canvas>
+
+    <div id="labels-container">
+      <div id="lbl-inc" class="ray-label">θᵢ = <span id="val-inc">45,0</span>°</div>
+      <div id="lbl-ref" class="ray-label">θᵣ = <span id="val-ref">45,0</span>°</div>
+      <div id="lbl-tra" class="ray-label">θₜ = <span id="val-tra">32,1</span>°</div>
+      <div id="lbl-crit" class="ray-label" style="display:none;">θc = <span id="val-crit">0,0</span>°</div>
+    </div>
+
+    <div id="tooltip"></div>
+  </div>
+
+  <div id="introScreen">
+    <canvas id="introMatrix"></canvas>
+    <div class="intro-content">
+      <div class="intro-title">Cargando simulador de óptica geométrica</div>
+      <div class="intro-line">Inicializando rayos, medios e índices</div>
+      <div class="intro-progress"><span></span></div>
+    </div>
+  </div>
+
+  <script>
+    const MEDIA = {
+      aire:      { name: "Aire",      emoji: "☁️", n: 1.00 },
+      agua:      { name: "Agua",      emoji: "💧", n: 1.33 },
+      alcohol:   { name: "Alcohol",   emoji: "🍷", n: 1.36 },
+      acetona:   { name: "Acetona",   emoji: "🧪", n: 1.36 },
+      glicerina: { name: "Glicerina", emoji: "🫧", n: 1.47 },
+      aceite:    { name: "Aceite",    emoji: "🟡", n: 1.47 },
+      vidrio:    { name: "Vidrio",    emoji: "🪟", n: 1.50 },
+      cuarzo:    { name: "Cuarzo",    emoji: "🔷", n: 1.54 }
+    };
+
+    const SCENARIOS = [
+      ["aire", "agua"],
+      ["aire", "alcohol"],
+      ["aire", "acetona"],
+      ["aire", "glicerina"],
+      ["aire", "aceite"],
+      ["aire", "vidrio"],
+      ["aire", "cuarzo"],
+      ["agua", "aceite"],
+      ["agua", "vidrio"],
+      ["agua", "cuarzo"],
+      ["alcohol", "aceite"],
+      ["alcohol", "vidrio"],
+      ["alcohol", "cuarzo"],
+      ["acetona", "aceite"],
+      ["acetona", "vidrio"],
+      ["acetona", "cuarzo"],
+      ["glicerina", "aceite"],
+      ["glicerina", "vidrio"],
+      ["glicerina", "cuarzo"],
+      ["aceite", "vidrio"],
+      ["aceite", "cuarzo"],
+      ["cuarzo", "vidrio"]
+    ];
+
+    const SCENE_IMAGES = {
+      "aire_agua": "aire_agua.png",
+      "aire_alcohol": "aire_alcohol.png",
+      "aire_acetona": "aire_acetona.png",
+      "aire_glicerina": "aire_glicerina.png",
+      "aire_aceite": "aire_aceite.png",
+      "aire_vidrio": "aire_vidrio.png",
+      "aire_cuarzo": "aire_cuarzo.png",
+      "agua_aceite": "agua_aceite.png",
+      "agua_vidrio": "agua_vidrio.png",
+      "agua_cuarzo": "agua_cuarzo.png",
+      "alcohol_aceite": "alcohol_aceite.png",
+      "alcohol_vidrio": "alcohol_vidrio.png",
+      "alcohol_cuarzo": "alcohol_cuarzo.png",
+      "acetona_aceite": "acetona_aceite.png",
+      "acetona_vidrio": "acetona_vidrio.png",
+      "acetona_cuarzo": "acetona_cuarzo.png",
+      "glicerina_aceite": "glicerina_aceite.png",
+      "glicerina_vidrio": "glicerina_vidrio.png",
+      "glicerina_cuarzo": "glicerina_cuarzo.png",
+      "aceite_vidrio": "aceite_vidrio.png",
+      "aceite_cuarzo": "aceite_cuarzo.png",
+      "cuarzo_vidrio": "cuarzo_vidrio.png"
+    };
+
+    /* Ajuste vertical de la interfaz física del simulador.
+       Pantalla completa usa los mismos valores de la vista normal.
+       Menor número = la línea blanca sube. Mayor número = la línea blanca baja. */
+    const INTERFACE_POSITIONS_NORMAL = {
+      "aire_agua": 54, "aire_alcohol": 54, "aire_acetona": 54, "aire_glicerina": 54,
+      "aire_aceite": 54.5, "aire_vidrio": 54, "aire_cuarzo": 54,
+      "agua_aceite": 53, "agua_vidrio": 54, "agua_cuarzo": 58.5,
+      "alcohol_aceite": 54.5, "alcohol_vidrio": 51, "alcohol_cuarzo": 48,
+      "acetona_aceite": 52, "acetona_vidrio": 55, "acetona_cuarzo": 56,
+      "glicerina_aceite": 54, "glicerina_vidrio": 59, "glicerina_cuarzo": 54,
+      "aceite_vidrio": 50, "aceite_cuarzo": 52, "cuarzo_vidrio": 52
+    };
+
+    const INTERFACE_POSITIONS_FULLSCREEN = INTERFACE_POSITIONS_NORMAL;
+
+    const state = {
+      scenarioIndex: 0,
+      incidentFrom: 'top',
+      thi: 45.0,
+      tht: null,
+      thetaCrit: null,
+      tir: false,
+      dragging: false,
+      equationRendered: false,
+      interfacePosition: 50,
+      rayAnimationStart: performance.now()
+    };
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const angleSlider = document.getElementById('angleSlider');
+    const scenarioSelect = document.getElementById('scenarioSelect');
+    const bgLayer = document.getElementById('bgLayer');
+    const menuBtn = document.getElementById('menuBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const controlMenu = document.getElementById('controlMenu');
+    const equationBtn = document.getElementById('equationBtn');
+    const equationBox = document.getElementById('equationBox');
+    const tooltip = document.getElementById('tooltip');
+    const introScreen = document.getElementById('introScreen');
+    const introCanvas = document.getElementById('introMatrix');
+    const introCtx = introCanvas.getContext('2d');
+
+    let hoverRegions = [];
+    let lastBackgroundKey = '';
+    const RAY_ANIMATION_MS = 780;
+
+    function isFullscreenMode() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    function getDefaultInterfacePosition(sceneKey) {
+      return isFullscreenMode()
+        ? (INTERFACE_POSITIONS_FULLSCREEN[sceneKey] ?? 53.5)
+        : (INTERFACE_POSITIONS_NORMAL[sceneKey] ?? 50);
+    }
+
+    function getCurrentInterfacePosition() {
+      return getDefaultInterfacePosition(getScenarioKey());
+    }
+
+    function clamp01(value) {
+      return Math.max(0, Math.min(1, value));
+    }
+
+    function restartRayAnimation() {
+      state.rayAnimationStart = performance.now();
+      requestAnimationFrame(drawScene);
+    }
+
+    function loadInterfacePosition() {
+      state.interfacePosition = getCurrentInterfacePosition();
+    }
+
+    function renderEquationsOnce() {
+      if (!state.equationRendered && window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([equationBox]).then(() => {
+          state.equationRendered = true;
+        }).catch(() => {});
+      }
+    }
+
+    function deg2rad(d) { return d * Math.PI / 180; }
+    function rad2deg(r) { return r * 180 / Math.PI; }
+    function formatComma(v, d = 1) { return Number(v).toFixed(d).replace('.', ','); }
+
+    function hexToRgb(hex) {
+      const r = parseInt(hex.slice(1,3), 16);
+      const g = parseInt(hex.slice(3,5), 16);
+      const b = parseInt(hex.slice(5,7), 16);
+      return `${r}, ${g}, ${b}`;
+    }
+
+    function getScenarioKey() {
+      const [a, b] = SCENARIOS[state.scenarioIndex];
+      return `${a}_${b}`;
+    }
+
+    function updateSceneBackground() {
+      const sceneKey = getScenarioKey();
+      const imageUrl = SCENE_IMAGES[sceneKey];
+      const interfaceY = `${getCurrentInterfacePosition()}%`;
+      const backgroundKey = `${sceneKey}|${imageUrl || 'default'}`;
+
+      if (backgroundKey !== lastBackgroundKey) {
+        bgLayer.classList.add('changing');
+        setTimeout(() => bgLayer.classList.remove('changing'), 180);
+        lastBackgroundKey = backgroundKey;
+      }
+
+      if (imageUrl) {
+        bgLayer.style.backgroundImage = `
+          linear-gradient(rgba(0,0,0,0.18), rgba(0,0,0,0.18)),
+          url("${imageUrl}")
+        `;
+        bgLayer.style.backgroundPosition = `center ${interfaceY}`;
+      } else {
+        bgLayer.style.backgroundImage = `
+          radial-gradient(circle at 25% 20%, rgba(255,255,255,0.08), transparent 22%),
+          radial-gradient(circle at 78% 75%, rgba(255,255,255,0.05), transparent 24%),
+          linear-gradient(180deg, #181818 0%, #0d0d0d 100%)
+        `;
+        bgLayer.style.backgroundPosition = `center ${interfaceY}`;
+      }
+    }
+
+    function populateScenarioSelect() {
+      SCENARIOS.forEach((pair, index) => {
+        const a = MEDIA[pair[0]];
+        const b = MEDIA[pair[1]];
+        const opt = document.createElement('option');
+        opt.value = index;
+        opt.textContent = `${a.emoji} ${a.name} / ${b.emoji} ${b.name}`;
+        scenarioSelect.appendChild(opt);
+      });
+      scenarioSelect.value = state.scenarioIndex;
+    }
+
+    function getScenarioMedia() {
+      const [topKey, bottomKey] = SCENARIOS[state.scenarioIndex];
+      return {
+        top: MEDIA[topKey],
+        bottom: MEDIA[bottomKey]
+      };
+    }
+
+    function getPhysicalData() {
+      const { top, bottom } = getScenarioMedia();
+
+      if (state.incidentFrom === 'top') {
+        return { top, bottom, incidentMedium: top, transmittedMedium: bottom };
+      } else {
+        return { top, bottom, incidentMedium: bottom, transmittedMedium: top };
+      }
+    }
+
+    function updateInfoUI() {
+      const { top, bottom, incidentMedium, transmittedMedium } = getPhysicalData();
+
+      document.getElementById('scenarioText').textContent =
+        `${top.emoji} ${top.name} / ${bottom.emoji} ${bottom.name}`;
+      document.getElementById('incidentMediumText').textContent =
+        `${incidentMedium.emoji} ${incidentMedium.name}`;
+      document.getElementById('transmittedMediumText').textContent =
+        `${transmittedMedium.emoji} ${transmittedMedium.name}`;
+      document.getElementById('incidentIndexText').textContent =
+        formatComma(incidentMedium.n, 2);
+      document.getElementById('transmittedIndexText').textContent =
+        formatComma(transmittedMedium.n, 2);
+
+      document.getElementById('criticalAngleText').textContent =
+        state.thetaCrit !== null ? `${formatComma(state.thetaCrit, 1)}°` : 'No aplica';
+    }
+
+    function updateLabel(id, x, y, value, visible = true) {
+      const el = document.getElementById(id);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.display = visible ? 'block' : 'none';
+
+      const suffix = id.split('-')[1];
+      const valueEl = document.getElementById(`val-${suffix}`);
+      if (valueEl) valueEl.textContent = value;
+    }
+
+    function addHoverRegion(x1, y1, x2, y2, label) {
+      hoverRegions.push({ x1, y1, x2, y2, label });
+    }
+
+    function distanceToSegment(px, py, x1, y1, x2, y2) {
+      const A = px - x1;
+      const B = py - y1;
+      const C = x2 - x1;
+      const D = y2 - y1;
+
+      const dot = A * C + B * D;
+      const lenSq = C * C + D * D;
+      let param = -1;
+
+      if (lenSq !== 0) param = dot / lenSq;
+
+      let xx, yy;
+      if (param < 0) {
+        xx = x1; yy = y1;
+      } else if (param > 1) {
+        xx = x2; yy = y2;
+      } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+      }
+
+      const dx = px - xx;
+      const dy = py - yy;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function drawSector(cx, cy, r, startAngle, endAngle, color, dashed = false) {
+      const rgb = hexToRgb(color);
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      grad.addColorStop(0, `rgba(${rgb}, 0.55)`);
+      grad.addColorStop(1, `rgba(${rgb}, 0.0)`);
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, startAngle, endAngle);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.4;
+      if (dashed) ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawAnimatedLine(x1, y1, x2, y2, color, progress) {
+      const eased = 1 - Math.pow(1 - clamp01(progress), 3);
+      const currentX = x1 + (x2 - x1) * eased;
+      const currentY = y1 + (y2 - y1) * eased;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(currentX, currentY);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
+
+    function drawIncidenceGlow(cx, cy, progress) {
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 180);
+      const alpha = 0.22 + pulse * 0.18;
+      const radius = 18 + pulse * 5;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      grad.addColorStop(0, `rgba(255,255,255,${alpha})`);
+      grad.addColorStop(0.45, `rgba(250,204,21,${alpha * 0.55})`);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+
+      ctx.globalAlpha = clamp01(progress);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function startIntroAnimation() {
+      const chars = '01<>[]{}#/$*+-=OPTICA RAYOS SNELL LUZ';
+      const fontSize = 16;
+      let columns = 0;
+      let drops = [];
+      let introRunning = true;
+
+      function resizeIntroCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        introCanvas.width = window.innerWidth * dpr;
+        introCanvas.height = window.innerHeight * dpr;
+        introCanvas.style.width = window.innerWidth + 'px';
+        introCanvas.style.height = window.innerHeight + 'px';
+        introCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        columns = Math.ceil(window.innerWidth / fontSize);
+        drops = Array.from({ length: columns }, () => Math.random() * -30);
+      }
+
+      function drawIntroFrame() {
+        if (!introRunning) return;
+
+        introCtx.fillStyle = 'rgba(5,5,5,0.18)';
+        introCtx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        introCtx.font = `${fontSize}px "Courier New", monospace`;
+
+        for (let i = 0; i < drops.length; i++) {
+          const text = chars[Math.floor(Math.random() * chars.length)];
+          const x = i * fontSize;
+          const y = drops[i] * fontSize;
+
+          introCtx.fillStyle = Math.random() > 0.92 ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.34)';
+          introCtx.fillText(text, x, y);
+
+          if (y > window.innerHeight && Math.random() > 0.975) {
+            drops[i] = 0;
+          }
+
+          drops[i] += 1.05;
+        }
+
+        requestAnimationFrame(drawIntroFrame);
+      }
+
+      resizeIntroCanvas();
+      window.addEventListener('resize', resizeIntroCanvas);
+      drawIntroFrame();
+
+      setTimeout(() => {
+        introScreen.classList.add('hidden');
+        introRunning = false;
+        window.removeEventListener('resize', resizeIntroCanvas);
+        restartRayAnimation();
+      }, 2800);
+    }
+
+    function updateSimulation() {
+      loadInterfacePosition();
+      state.thi = parseFloat(angleSlider.value);
+      document.getElementById('angleValueDisplay').textContent = `${formatComma(state.thi, 1)}°`;
+
+      const { incidentMedium, transmittedMedium } = getPhysicalData();
+      const n1 = incidentMedium.n;
+      const n2 = transmittedMedium.n;
+
+      state.thetaCrit = null;
+      state.tir = false;
+      state.tht = null;
+
+      if (n1 > n2) {
+        const ratio = n2 / n1;
+        if (ratio <= 1) {
+          state.thetaCrit = rad2deg(Math.asin(ratio));
+        }
+      }
+
+      const sinThetaT = (n1 / n2) * Math.sin(deg2rad(state.thi));
+
+      if (Math.abs(sinThetaT) > 1) {
+        state.tir = true;
+      } else {
+        state.tht = rad2deg(Math.asin(sinThetaT));
+      }
+
+      updateSceneBackground();
+      updateInfoUI();
+
+      const tirAlert = document.getElementById('tirAlert');
+      if (state.tir && state.thetaCrit !== null) {
+        tirAlert.style.display = 'block';
+        tirAlert.textContent = 'Reflexión interna total';
+      } else {
+        tirAlert.style.display = 'none';
+      }
+
+      drawScene();
+    }
+
+    function drawScene() {
+      const w = canvas.width / (window.devicePixelRatio || 1);
+      const h = canvas.height / (window.devicePixelRatio || 1);
+      const cx = w / 2;
+      const cy = h * (getCurrentInterfacePosition() / 100);
+      const rayLen = Math.max(w, h);
+      const arcR = 84;
+      const labelR = 142;
+      const fromTop = state.incidentFrom === 'top';
+      const radI = deg2rad(state.thi);
+      const elapsed = performance.now() - state.rayAnimationStart;
+      const rayProgress = clamp01(elapsed / RAY_ANIMATION_MS);
+
+      hoverRegions = [];
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.beginPath();
+      ctx.moveTo(cx, 0);
+      ctx.lineTo(cx, h);
+      ctx.strokeStyle = 'rgba(255,255,255,0.42)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      addHoverRegion(cx, 0, cx, h, 'Normal');
+
+      ctx.beginPath();
+      ctx.moveTo(0, cy);
+      ctx.lineTo(w, cy);
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      drawIncidenceGlow(cx, cy, rayProgress);
+
+      function drawRay(angleFromNormal, color, fromTop, reflected = false, transmitted = false) {
+        let endX, endY;
+        let label = '';
+        let progress = rayProgress;
+        let startX = cx;
+        let startY = cy;
+        let targetX;
+        let targetY;
+
+        if (fromTop && !reflected && !transmitted) {
+          endX = cx - rayLen * Math.sin(angleFromNormal);
+          endY = cy - rayLen * Math.cos(angleFromNormal);
+          label = 'Rayo incidente';
+        } else if (fromTop && reflected) {
+          endX = cx + rayLen * Math.sin(angleFromNormal);
+          endY = cy - rayLen * Math.cos(angleFromNormal);
+          label = 'Rayo reflejado';
+        } else if (fromTop && transmitted) {
+          endX = cx + rayLen * Math.sin(angleFromNormal);
+          endY = cy + rayLen * Math.cos(angleFromNormal);
+          label = 'Rayo transmitido';
+        } else if (!fromTop && !reflected && !transmitted) {
+          endX = cx - rayLen * Math.sin(angleFromNormal);
+          endY = cy + rayLen * Math.cos(angleFromNormal);
+          label = 'Rayo incidente';
+        } else if (!fromTop && reflected) {
+          endX = cx + rayLen * Math.sin(angleFromNormal);
+          endY = cy + rayLen * Math.cos(angleFromNormal);
+          label = 'Rayo reflejado';
+        } else if (!fromTop && transmitted) {
+          endX = cx + rayLen * Math.sin(angleFromNormal);
+          endY = cy - rayLen * Math.cos(angleFromNormal);
+          label = 'Rayo transmitido';
+        }
+
+        if (!reflected && !transmitted) {
+          startX = endX;
+          startY = endY;
+          targetX = cx;
+          targetY = cy;
+          progress = clamp01(rayProgress / 0.55);
+        } else {
+          targetX = endX;
+          targetY = endY;
+          progress = clamp01((rayProgress - 0.38) / 0.62);
+        }
+
+        drawAnimatedLine(startX, startY, targetX, targetY, color, progress);
+
+        addHoverRegion(cx, cy, endX, endY, label);
+      }
+
+      if (fromTop) {
+        drawSector(cx, cy, arcR, -Math.PI/2 - radI, -Math.PI/2, '#facc15');
+        drawRay(radI, '#facc15', true, false, false);
+        updateLabel('lbl-inc', cx - labelR * Math.sin(radI / 2), cy - labelR * Math.cos(radI / 2), formatComma(state.thi, 1), true);
+
+        drawSector(cx, cy, arcR, -Math.PI/2, -Math.PI/2 + radI, '#fb923c');
+        drawRay(radI, '#fb923c', true, true, false);
+        updateLabel('lbl-ref', cx + labelR * Math.sin(radI / 2), cy - labelR * Math.cos(radI / 2), formatComma(state.thi, 1), true);
+
+        if (state.thetaCrit !== null) {
+          const radC = deg2rad(state.thetaCrit);
+          drawSector(cx, cy, arcR, -Math.PI/2 - radC, -Math.PI/2, '#d4d4d4', true);
+          updateLabel('lbl-crit', cx - labelR * Math.sin(radC * 0.70), cy - labelR * Math.cos(radC * 0.70), formatComma(state.thetaCrit, 1), true);
+        } else {
+          updateLabel('lbl-crit', 0, 0, '0,0', false);
+        }
+
+        if (!state.tir && state.tht !== null) {
+          const radT = deg2rad(state.tht);
+          drawSector(cx, cy, arcR, Math.PI/2 - radT, Math.PI/2, '#22d3ee');
+          drawRay(radT, '#22d3ee', true, false, true);
+          updateLabel('lbl-tra', cx + labelR * Math.sin(radT / 2), cy + labelR * Math.cos(radT / 2), formatComma(state.tht, 1), true);
+        } else {
+          updateLabel('lbl-tra', 0, 0, '0,0', false);
+        }
+
+      } else {
+        drawSector(cx, cy, arcR, Math.PI/2, Math.PI/2 + radI, '#facc15');
+        drawRay(radI, '#facc15', false, false, false);
+        updateLabel('lbl-inc', cx - labelR * Math.sin(radI / 2), cy + labelR * Math.cos(radI / 2), formatComma(state.thi, 1), true);
+
+        drawSector(cx, cy, arcR, Math.PI/2 - radI, Math.PI/2, '#fb923c');
+        drawRay(radI, '#fb923c', false, true, false);
+        updateLabel('lbl-ref', cx + labelR * Math.sin(radI / 2), cy + labelR * Math.cos(radI / 2), formatComma(state.thi, 1), true);
+
+        if (state.thetaCrit !== null) {
+          const radC = deg2rad(state.thetaCrit);
+          drawSector(cx, cy, arcR, Math.PI/2, Math.PI/2 + radC, '#d4d4d4', true);
+          updateLabel('lbl-crit', cx - labelR * Math.sin(radC * 0.70), cy + labelR * Math.cos(radC * 0.70), formatComma(state.thetaCrit, 1), true);
+        } else {
+          updateLabel('lbl-crit', 0, 0, '0,0', false);
+        }
+
+        if (!state.tir && state.tht !== null) {
+          const radT = deg2rad(state.tht);
+          drawSector(cx, cy, arcR, -Math.PI/2, -Math.PI/2 + radT, '#22d3ee');
+          drawRay(radT, '#22d3ee', false, false, true);
+          updateLabel('lbl-tra', cx + labelR * Math.sin(radT / 2), cy - labelR * Math.cos(radT / 2), formatComma(state.tht, 1), true);
+        } else {
+          updateLabel('lbl-tra', 0, 0, '0,0', false);
+        }
+      }
+
+      if (rayProgress < 1) {
+        requestAnimationFrame(drawScene);
+      }
+    }
+
+
+    async function toggleFullscreen() {
+      const target = document.documentElement;
+
+      try {
+        if (!document.fullscreenElement) {
+          if (target.requestFullscreen) {
+            await target.requestFullscreen();
+          } else if (target.webkitRequestFullscreen) {
+            target.webkitRequestFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          }
+        }
+      } catch (error) {
+        console.warn('No se pudo activar pantalla completa:', error);
+      }
+
+      setTimeout(resize, 120);
+    }
+
+    function updateFullscreenButton() {
+      fullscreenBtn.textContent = isFullscreenMode()
+        ? '⛶ Salir de pantalla completa'
+        : '⛶ Pantalla completa';
+      loadInterfacePosition();
+      restartRayAnimation();
+      setTimeout(resize, 120);
+      setTimeout(resize, 260);
+    }
+
+    function resize() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      updateSimulation();
+    }
+
+    function updateAngleFromPointer(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const cx = rect.width / 2;
+      const cy = rect.height * (getCurrentInterfacePosition() / 100);
+      const fromTop = state.incidentFrom === 'top';
+
+      if (fromTop && y > cy) return;
+      if (!fromTop && y < cy) return;
+
+      let angle;
+      if (fromTop) {
+        angle = rad2deg(Math.atan2(Math.abs(cx - x), Math.abs(cy - y)));
+      } else {
+        angle = rad2deg(Math.atan2(Math.abs(cx - x), Math.abs(y - cy)));
+      }
+
+      angle = Math.max(0.1, Math.min(89.9, angle));
+      angleSlider.value = angle;
+      updateSimulation();
+    }
+
+    fullscreenBtn.onclick = toggleFullscreen;
+
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    });
+
+    menuBtn.onclick = () => {
+      controlMenu.classList.toggle('open');
+    };
+
+    equationBtn.onclick = () => {
+      equationBox.classList.toggle('open');
+      equationBtn.textContent = equationBox.classList.contains('open')
+        ? 'Ocultar ecuaciones'
+        : 'Mostrar ecuaciones';
+
+      if (equationBox.classList.contains('open')) {
+        renderEquationsOnce();
+      }
+    };
+
+    document.getElementById('directionBtn').onclick = () => {
+      state.incidentFrom = state.incidentFrom === 'top' ? 'bottom' : 'top';
+      document.getElementById('directionBtn').innerText =
+        state.incidentFrom === 'top'
+          ? 'Incidencia desde arriba'
+          : 'Incidencia desde abajo';
+      restartRayAnimation();
+      updateSimulation();
+    };
+
+    scenarioSelect.onchange = () => {
+      state.scenarioIndex = parseInt(scenarioSelect.value, 10);
+      loadInterfacePosition();
+      restartRayAnimation();
+      updateSimulation();
+    };
+
+    angleSlider.oninput = updateSimulation;
+
+    canvas.onmousedown = (e) => {
+      state.dragging = true;
+      updateAngleFromPointer(e.clientX, e.clientY);
+    };
+
+    window.onmouseup = () => {
+      state.dragging = false;
+    };
+
+    window.onmousemove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      if (state.dragging) {
+        updateAngleFromPointer(e.clientX, e.clientY);
+      }
+
+      let found = false;
+      for (const region of hoverRegions) {
+        const dist = distanceToSegment(x, y, region.x1, region.y1, region.x2, region.y2);
+        if (dist < 10) {
+          tooltip.style.display = 'block';
+          tooltip.style.left = `${x + 14}px`;
+          tooltip.style.top = `${y + 14}px`;
+          tooltip.textContent = region.label;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        tooltip.style.display = 'none';
+      }
+    };
+
+    window.addEventListener('click', (e) => {
+      const clickedInsideMenu = controlMenu.contains(e.target);
+      const clickedMenuBtn = menuBtn.contains(e.target);
+      const clickedFullscreenBtn = fullscreenBtn.contains(e.target);
+      if (!clickedInsideMenu && !clickedMenuBtn && !clickedFullscreenBtn) {
+        controlMenu.classList.remove('open');
+      }
+    });
+
+    window.onresize = resize;
+
+    startIntroAnimation();
+    populateScenarioSelect();
+    loadInterfacePosition();
+
+    document.fonts.ready.then(() => {
+      resize();
+    });
+  </script>
+</body>
+</html>
